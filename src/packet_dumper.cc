@@ -17,13 +17,16 @@ void PacketDumper::StartCapture() {
     }
 
     if (record_vlan_) {
-      struct vlan_ethhdr* vlan_eth_header = static_cast<struct vlan_ethhdr*>(packet);
-      short vlan_tci = static_cast<short>(vlan_eth_header->h_vlan_TCI);
-      int vlan_id = static_cast<int>(vlan_tci & 0x0fff);
+      u_char* vlan_or_type_start = packet + 12; // 12 = src + dst mac address len
+      short tpid = *((short*)vlan_or_type_start);
+
+      //IEEE 802.1Q VLAN frame
+      if (tpid == 0x8100) {
+      }
+
       if (auto it = vlan_record_.record_map.find(vlan_id); it == vlan_record_.record_map.end()) {
         vlan_record_.record_map_[vlan_id] = new PacketNum();
       }
-
       vlan_record_.total_packet_num++;
       LOG(INFO) << vlan_id;
       continue;

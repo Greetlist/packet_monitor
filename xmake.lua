@@ -1,8 +1,9 @@
 add_rules("mode.debug", "mode.release")
 
-add_requires("libpcap")
+add_requires("libpcap", "glog", "gflags")
 
 target("packet_monitor")
+    add_packages("libpcap", "glog", "gflags")
     set_kind("binary")
     add_files("src/*.cc")
 

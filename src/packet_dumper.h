@@ -5,7 +5,6 @@
 #include <atomic>
 #include <pcap/pcap.h>
 #include <glog/logging.h>
-#include <include/linux/if_vlan.h>
 
 #include "record_struct.h"
 
