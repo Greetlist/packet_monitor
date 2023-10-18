@@ -11,6 +11,9 @@ PacketDumper::~PacketDumper() {
     pcap_close(pcap_handler_);
     pcap_handler_ = nullptr;
   }
+  for (auto [vlan_id, record] : vlan_record_.record_map) {
+    delete record;
+  }
 }
 
 void PacketDumper::Init() {
@@ -59,7 +62,7 @@ void PacketDumper::StartCapture() {
 
     memset(raw_data, 0, ETH_MAX_LEN);
     if (h.len > ETH_MAX_LEN) {
-      LOG(WARN) << "Capture Packet Len is over 1500!";
+      LOG(WARNING) << "Capture Packet Len is over 1500!";
       memcpy(raw_data, packet, 1500);
     } else {
       memcpy(raw_data, packet, h.len);
@@ -73,8 +76,8 @@ void PacketDumper::StartCapture() {
     if (tpid == 0x8100) { //IEEE 802.1Q VLAN frame
       vlan_packet_num_++;
       is_vlan_frame = true;
-      u_char* tci = raw_data + 14;
-      vlan_id = ;
+      short tci = *(short*)(raw_data + 14);
+      vlan_id = tci & 0x0FFF;
     } else if (tpid <= 1500) { //Normal Ethernet frame [Length]
     } else if (tpid >= 1536) { //Normal Ethernet frame [Type]
     } else if (tpid >= 1501 && tpid <= 1535) { //Undefined/Invalid frame
@@ -83,9 +86,9 @@ void PacketDumper::StartCapture() {
 
     if (record_vlan_ && is_vlan_frame) {
       if (auto it = vlan_record_.record_map.find(vlan_id); it == vlan_record_.record_map.end()) {
-        vlan_record_.record_map_[vlan_id] = new PacketNum();
+        vlan_record_.record_map[vlan_id] = new PacketNum();
       }
-      vlan_record_.record_map_[vlan_id].total_packet_num++;
+      vlan_record_.total_packet_num++;
       LOG(INFO) << vlan_id;
     }
   }
@@ -96,11 +99,11 @@ void PacketDumper::Stop() {
 }
 
 void PacketDumper::GenerateReport() {
-  for (auto [vlan_id, record] : vlan_record_) {
+  for (auto [vlan_id, record] : vlan_record_.record_map) {
     LOG(INFO)
       << "Vlan: " << vlan_id << " has " 
-      << record.ICMP_packet_num_ << " ICMP Packets, "
-      << record.TCP_packet_num_ << " TCP Packets, "
-      << record.UDP_packet_num_ << " UDP Packets";
+      << record->ICMP_packet_num_ << " ICMP Packets, "
+      << record->TCP_packet_num_ << " TCP Packets, "
+      << record->UDP_packet_num_ << " UDP Packets";
   }
 }
