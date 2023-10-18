@@ -1,14 +1,55 @@
 #include "packet_dumper.h"
 
-PacketDumper::PacketDumper(const std::string& device, const std::string& filter_phrase, const int max_capture_num, bool record_vlan, bool record_mac) : device_(device), filter_phrase_(filter_phrase), max_capture_num(max_capture_num), record_vlan_(record_vlan) {}
+PacketDumper::PacketDumper(const std::string& device_name, const std::string& filter_phrase, const int max_capture_num, bool record_vlan) : device_name_(device_name), filter_phrase_(filter_phrase), record_vlan_(record_vlan) {}
 
-void PacketDumper::OnPacketReceive(u_char* args, const struct pcap_phkhdr* header, const u_char* packet) {
-  struct ethhdr* ethernet_header = static_cast<struct ethhdr* ethernet_header>(packet);
+PacketDumper::~PacketDumper() {
+  if (net_device_) {
+    delete net_device_;
+    net_device_ = nullptr;
+  }
+  if (pcap_handler_) {
+    pcap_close(pcap_handler_);
+    pcap_handler_ = nullptr;
+  }
+}
+
+void PacketDumper::Init() {
+  net_device_ = new NetDevice();
+  char err_msg[PCAP_ERRBUF_SIZE];
+  struct bpf_program fp;
+
+  net_device_->dev = pcap_lookupdev(err_msg);
+  if (net_device_->dev == nullptr) {
+    LOG(ERROR) << "pcap_lookupdev Error is: " << err_msg;
+    exit(1);
+  }
+
+  if (pcap_lookupnet(net_device_->dev, &net_device_->net, &net_device_->mask, err_msg) == -1) {
+    LOG(ERROR) << "pcap_lookupnet Error is: " << err_msg;
+    exit(1);
+  }
+
+  pcap_handler_ = pcap_open_live(net_device_->dev, ETH_MAX_LEN, 1, 1000, err_msg);
+  if (pcap_handler_ == nullptr) {
+    LOG(ERROR) << "pcap_open_live Error is: " << err_msg;
+    exit(1);
+  }
+
+  if (pcap_compile(pcap_handler_, &fp_, filter_phrase_.c_str(), 0, net_device_->net) == -1) {
+    LOG(ERROR) << "pcap_compile Error is: " << err_msg;
+    exit(1);
+  }
+
+  if (pcap_setfilter(pcap_handler_, &fp_) == -1) {
+    LOG(ERROR) << "pcap_setfilter Error is: " << err_msg;
+    exit(1);
+  }
 }
 
 void PacketDumper::StartCapture() {
   while (!stop_) {
     struct pcap_pkthdr h;
+    u_char raw_data[ETH_MAX_LEN];
     memset(&h, 0, sizeof(struct pcap_pkthdr));
     const u_char* packet = pcap_next(pcap_handler_, &h);
     if (packet == nullptr) {
@@ -16,25 +57,50 @@ void PacketDumper::StartCapture() {
       continue;
     }
 
-    if (record_vlan_) {
-      u_char* vlan_or_type_start = packet + 12; // 12 = src + dst mac address len
-      short tpid = *((short*)vlan_or_type_start);
+    memset(raw_data, 0, ETH_MAX_LEN);
+    if (h.len > ETH_MAX_LEN) {
+      LOG(WARN) << "Capture Packet Len is over 1500!";
+      memcpy(raw_data, packet, 1500);
+    } else {
+      memcpy(raw_data, packet, h.len);
+    }
 
-      //IEEE 802.1Q VLAN frame
-      if (tpid == 0x8100) {
-      }
+    u_char* vlan_or_type_start = raw_data + 12; // 12 Bytes = src + dst mac address len
+    short tpid = (*vlan_or_type_start << 8) | *(vlan_or_type_start + 1);
+    bool is_vlan_frame = false;
+    int vlan_id;
 
+    if (tpid == 0x8100) { //IEEE 802.1Q VLAN frame
+      vlan_packet_num_++;
+      is_vlan_frame = true;
+      u_char* tci = raw_data + 14;
+      vlan_id = ;
+    } else if (tpid <= 1500) { //Normal Ethernet frame [Length]
+    } else if (tpid >= 1536) { //Normal Ethernet frame [Type]
+    } else if (tpid >= 1501 && tpid <= 1535) { //Undefined/Invalid frame
+      invalid_packet_num_++;
+    }
+
+    if (record_vlan_ && is_vlan_frame) {
       if (auto it = vlan_record_.record_map.find(vlan_id); it == vlan_record_.record_map.end()) {
         vlan_record_.record_map_[vlan_id] = new PacketNum();
       }
-      vlan_record_.total_packet_num++;
+      vlan_record_.record_map_[vlan_id].total_packet_num++;
       LOG(INFO) << vlan_id;
-      continue;
     }
-
   }
 }
 
 void PacketDumper::Stop() {
   stop_ = true;
+}
+
+void PacketDumper::GenerateReport() {
+  for (auto [vlan_id, record] : vlan_record_) {
+    LOG(INFO)
+      << "Vlan: " << vlan_id << " has " 
+      << record.ICMP_packet_num_ << " ICMP Packets, "
+      << record.TCP_packet_num_ << " TCP Packets, "
+      << record.UDP_packet_num_ << " UDP Packets";
+  }
 }
