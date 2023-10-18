@@ -21,7 +21,20 @@ void PacketDumper::Init() {
   char err_msg[PCAP_ERRBUF_SIZE];
   struct bpf_program fp;
 
-  net_device_->dev = pcap_lookupdev(err_msg);
+  pcap_if_t* dev_list;
+  if (pcap_findalldevs(&dev_list, err_msg)) {
+    LOG(ERROR) << "pcap_findalldevs Error is: " << err_msg;
+    exit(1);
+  }
+
+  while (dev_list != nullptr) {
+    dev_list = dev_list->next;
+    if (std::string(dev_list->name) == device_name_) {
+      LOG(INFO) << "Match Dev: " << dev_list->name;
+      net_device_->dev = dev_list->name;
+      break;
+    }
+  }
   if (net_device_->dev == nullptr) {
     LOG(ERROR) << "pcap_lookupdev Error is: " << err_msg;
     exit(1);
@@ -47,6 +60,12 @@ void PacketDumper::Init() {
     LOG(ERROR) << "pcap_setfilter Error is: " << err_msg;
     exit(1);
   }
+  LOG(INFO)
+    << "Final Capture Packet On Device: ["
+    << net_device_->dev
+    << "], Filter Phrase is: ["
+    << filter_phrase_.c_str()
+    << "]";
 }
 
 void PacketDumper::StartCapture() {
@@ -72,6 +91,8 @@ void PacketDumper::StartCapture() {
     short tpid = (*vlan_or_type_start << 8) | *(vlan_or_type_start + 1);
     bool is_vlan_frame = false;
     int vlan_id;
+
+    LOG(INFO) << tpid;
 
     if (tpid == 0x8100) { //IEEE 802.1Q VLAN frame
       vlan_packet_num_++;

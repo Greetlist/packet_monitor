@@ -1,9 +1,10 @@
 #include <iostream>
 #include <glog/logging.h>
 #include <gflags/gflags.h>
-#include "packet_dumper.h"
 #include <csignal>
 #include <functional>
+
+#include "packet_dumper.h"
 
 DEFINE_string(dev_name, "", "net device name");
 DEFINE_string(filter_phrase, "", "tcpdump filter phrase");
