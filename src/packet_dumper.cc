@@ -69,6 +69,7 @@ void PacketDumper::Init() {
 }
 
 void PacketDumper::StartCapture() {
+  LOG(INFO) << "Start Capture";
   while (!stop_) {
     struct pcap_pkthdr h;
     u_char raw_data[ETH_MAX_LEN];
@@ -87,18 +88,16 @@ void PacketDumper::StartCapture() {
       memcpy(raw_data, packet, h.len);
     }
 
-    u_char* vlan_or_type_start = raw_data + 12; // 12 Bytes = src + dst mac address len
-    short tpid = (*vlan_or_type_start << 8) | *(vlan_or_type_start + 1);
+    short tpid = (raw_data[12] << 8) | raw_data[13];
     bool is_vlan_frame = false;
     int vlan_id;
 
-    LOG(INFO) << tpid;
-
-    if (tpid == 0x8100) { //IEEE 802.1Q VLAN frame
+    if (tpid == (short)0x8100) { //IEEE 802.1Q VLAN frame
+      LOG(INFO) << "Capture VLAN frame, Length: " << h.len;
       vlan_packet_num_++;
       is_vlan_frame = true;
-      short tci = *(short*)(raw_data + 14);
-      vlan_id = tci & 0x0FFF;
+      short tci = (raw_data[14] << 8) | raw_data[15];
+      vlan_id = tci & (short)0x0FFF;
     } else if (tpid <= 1500) { //Normal Ethernet frame [Length]
     } else if (tpid >= 1536) { //Normal Ethernet frame [Type]
     } else if (tpid >= 1501 && tpid <= 1535) { //Undefined/Invalid frame
@@ -113,6 +112,7 @@ void PacketDumper::StartCapture() {
       LOG(INFO) << vlan_id;
     }
   }
+  LOG(INFO) << "Finish Capture";
 }
 
 void PacketDumper::Stop() {

@@ -6,6 +6,7 @@
 #include <pcap.h>
 #include <glog/logging.h>
 #include <unistd.h>
+#include <iostream>
 
 #include "record_struct.h"
 #include "net_device.h"
@@ -28,7 +29,7 @@ private:
   int max_capture_num_ = 0;
   int invalid_packet_num_ = 0;
   int vlan_packet_num_ = 0;
-  std::atomic<bool> stop_;
+  std::atomic<bool> stop_{false};
   bool record_vlan_;
   VlanRecord vlan_record_;
 
