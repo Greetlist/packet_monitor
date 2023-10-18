@@ -6,6 +6,7 @@ target("packet_monitor")
     add_packages("libpcap", "glog", "gflags")
     set_kind("binary")
     add_files("src/*.cc")
+    set_languages("c++17")
 
 --
 -- If you want to known more usage about xmake, please see https://xmake.io

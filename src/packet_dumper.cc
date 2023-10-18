@@ -95,6 +95,7 @@ void PacketDumper::StartCapture() {
 }
 
 void PacketDumper::Stop() {
+  LOG(INFO) << "Stop Capture";
   stop_ = true;
 }
 
