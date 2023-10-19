@@ -7,6 +7,8 @@
 #include <glog/logging.h>
 #include <unistd.h>
 #include <iostream>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
 
 #include "record_struct.h"
 #include "net_device.h"
@@ -20,6 +22,9 @@ public:
   void Stop();
   void GenerateReport();
 private:
+  void ExtractThreeLayerHeader(unsigned char*);
+  void ExtractFourLayerHeader(unsigned char*);
+  std::string TransportProtocol(unsigned char);
   std::string device_name_;
   std::string filter_phrase_;
   NetDevice* net_device_ = nullptr;

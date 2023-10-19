@@ -109,8 +109,10 @@ void PacketDumper::StartCapture() {
         vlan_record_.record_map[vlan_id] = new PacketNum();
       }
       vlan_record_.total_packet_num++;
-      LOG(INFO) << vlan_id;
     }
+
+    int ethernet_header_len = is_vlan_frame ? 18 : 14;
+    ExtractThreeLayerHeader(raw_data+ethernet_header_len);
   }
   LOG(INFO) << "Finish Capture";
 }
@@ -127,5 +129,32 @@ void PacketDumper::GenerateReport() {
       << record->ICMP_packet_num_ << " ICMP Packets, "
       << record->TCP_packet_num_ << " TCP Packets, "
       << record->UDP_packet_num_ << " UDP Packets";
+  }
+}
+
+void PacketDumper::ExtractThreeLayerHeader(unsigned char* raw_packet) {
+  struct iphdr* ip_header = (struct iphdr*)(raw_packet);
+  LOG(INFO)
+    << "IP Version: " << ip_header->version
+    << ", Transport layer protocol: " << TransportProtocol(ip_header->protocol);
+  char src_ip[INET_ADDRSTRLEN];
+  char dst_ip[INET_ADDRSTRLEN];
+  inet_ntop(AF_INET, &ip_header->saddr, src_ip, INET_ADDRSTRLEN);
+  inet_ntop(AF_INET, &ip_header->daddr, dst_ip, INET_ADDRSTRLEN);
+  LOG(INFO) << "src ip: " << src_ip << ", dst ip: " << dst_ip;
+}
+
+void PacketDumper::ExtractFourLayerHeader(unsigned char* raw_packet) {
+  struct tcphdr* tcp_header = (struct tcphdr*)(raw_packet);
+  LOG(INFO) << "src port: " << ntohs(tcp_header->source) << ", dst port: " << ntohs(tcp_header->dest);
+}
+
+std::string PacketDumper::TransportProtocol(unsigned char code) {
+  switch(code) {
+    case 1: return "icmp";
+    case 2: return "igmp";
+    case 6: return "tcp";
+    case 17: return "udp";
+    default: return "unknown";
   }
 }
