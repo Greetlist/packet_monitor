@@ -113,6 +113,7 @@ void PacketDumper::StartCapture() {
 
     int ethernet_header_len = is_vlan_frame ? 18 : 14;
     ExtractThreeLayerHeader(raw_data+ethernet_header_len);
+    ExtractFourLayerHeader(raw_data+ethernet_header_len+sizeof(struct iphdr));
   }
   LOG(INFO) << "Finish Capture";
 }
