@@ -43,6 +43,8 @@ private:
   VlanRecord vlan_record_;
   std::mutex record_lock_;
 
+  std::thread report_thread_;
+
   static constexpr int ETH_MAX_LEN = 1500;
 };
 

@@ -110,6 +110,7 @@ void PacketDumper::StartCapture() {
         vlan_record_.record_map[vlan_id] = new PacketNum();
       }
       vlan_record_.total_packet_num++;
+      LOG(INFO) << vlan_id;
     }
 
     int ethernet_header_len = is_vlan_frame ? 18 : 14;
@@ -120,22 +121,25 @@ void PacketDumper::StartCapture() {
 }
 
 void PacketDumper::StartReportThread() {
-  while (!stop_) {
-    GenerateReport();
-    std::this_thread::sleep_for(std::chrono::seconds(10));
-  }
+  LOG(INFO) << "Start Report Thread";
+  report_thread_ = std::thread(&PacketDumper::GenerateReport, this);
 }
 
 void PacketDumper::GenerateReport() {
-  std::lock_guard<std::mutex> l(record_lock_);
-  for (auto [vlan_id, record] : vlan_record_.record_map) {
-    LOG(INFO)
-      << "Vlan: " << vlan_id << " has " 
-      << record->ICMP_packet_num_ << " ICMP Packets, "
-      << record->IGMP_packet_num_ << " IGMP Packets, "
-      << record->TCP_packet_num_ << " TCP Packets, "
-      << record->UDP_packet_num_ << " UDP Packets"
-      << record->Unknown_packet_num_ << " Unknown Type Packets";
+  while (!stop_) {
+    {
+      std::lock_guard<std::mutex> l(record_lock_);
+      for (auto [vlan_id, record] : vlan_record_.record_map) {
+        LOG(INFO)
+          << "Vlan: " << vlan_id << " has [ " 
+          << record->ICMP_packet_num_ << " ] ICMP Packets, [ "
+          << record->IGMP_packet_num_ << " ] IGMP Packets, [ "
+          << record->TCP_packet_num_ << " ] TCP Packets, [ "
+          << record->UDP_packet_num_ << " ] UDP Packets, [ "
+          << record->Unknown_packet_num_ << " ] Unknown Type Packets";
+      }
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(10));
   }
 }
 
