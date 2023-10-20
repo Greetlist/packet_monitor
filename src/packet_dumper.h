@@ -9,6 +9,9 @@
 #include <iostream>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <mutex>
+#include <thread>
+#include <chrono>
 
 #include "record_struct.h"
 #include "net_device.h"
@@ -19,12 +22,13 @@ public:
   ~PacketDumper();
   void Init();
   void StartCapture();
-  void Stop();
+  void StartReportThread();
   void GenerateReport();
+  void Stop();
 private:
-  void ExtractThreeLayerHeader(unsigned char*);
+  void ExtractThreeLayerHeader(unsigned char*, int);
   void ExtractFourLayerHeader(unsigned char*);
-  std::string TransportProtocol(unsigned char);
+  std::string RecordProtocol(unsigned char, int);
   std::string device_name_;
   std::string filter_phrase_;
   NetDevice* net_device_ = nullptr;
@@ -37,6 +41,7 @@ private:
   std::atomic<bool> stop_{false};
   bool record_vlan_;
   VlanRecord vlan_record_;
+  std::mutex record_lock_;
 
   static constexpr int ETH_MAX_LEN = 1500;
 };

@@ -90,7 +90,7 @@ void PacketDumper::StartCapture() {
 
     short tpid = (raw_data[12] << 8) | raw_data[13];
     bool is_vlan_frame = false;
-    int vlan_id;
+    int vlan_id = 0;
 
     if (tpid == (short)0x8100) { //IEEE 802.1Q VLAN frame
       LOG(INFO) << "Capture VLAN frame, Length: " << h.len;
@@ -105,6 +105,7 @@ void PacketDumper::StartCapture() {
     }
 
     if (record_vlan_ && is_vlan_frame) {
+      std::lock_guard<std::mutex> l(record_lock_);
       if (auto it = vlan_record_.record_map.find(vlan_id); it == vlan_record_.record_map.end()) {
         vlan_record_.record_map[vlan_id] = new PacketNum();
       }
@@ -112,9 +113,29 @@ void PacketDumper::StartCapture() {
     }
 
     int ethernet_header_len = is_vlan_frame ? 18 : 14;
-    ExtractThreeLayerHeader(raw_data+ethernet_header_len);
+    ExtractThreeLayerHeader(raw_data+ethernet_header_len, vlan_id);
   }
   LOG(INFO) << "Finish Capture";
+}
+
+void PacketDumper::StartReportThread() {
+  while (!stop_) {
+    GenerateReport();
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+  }
+}
+
+void PacketDumper::GenerateReport() {
+  std::lock_guard<std::mutex> l(record_lock_);
+  for (auto [vlan_id, record] : vlan_record_.record_map) {
+    LOG(INFO)
+      << "Vlan: " << vlan_id << " has " 
+      << record->ICMP_packet_num_ << " ICMP Packets, "
+      << record->IGMP_packet_num_ << " IGMP Packets, "
+      << record->TCP_packet_num_ << " TCP Packets, "
+      << record->UDP_packet_num_ << " UDP Packets"
+      << record->Unknown_packet_num_ << " Unknown Type Packets";
+  }
 }
 
 void PacketDumper::Stop() {
@@ -122,21 +143,11 @@ void PacketDumper::Stop() {
   stop_ = true;
 }
 
-void PacketDumper::GenerateReport() {
-  for (auto [vlan_id, record] : vlan_record_.record_map) {
-    LOG(INFO)
-      << "Vlan: " << vlan_id << " has " 
-      << record->ICMP_packet_num_ << " ICMP Packets, "
-      << record->TCP_packet_num_ << " TCP Packets, "
-      << record->UDP_packet_num_ << " UDP Packets";
-  }
-}
-
-void PacketDumper::ExtractThreeLayerHeader(unsigned char* raw_packet) {
+void PacketDumper::ExtractThreeLayerHeader(unsigned char* raw_packet, int vlan_id) {
   struct iphdr* ip_header = (struct iphdr*)(raw_packet);
   LOG(INFO)
     << "IP Version: " << ip_header->version
-    << ", Transport layer protocol: " << TransportProtocol(ip_header->protocol);
+    << ", Transport layer protocol: " << RecordProtocol(ip_header->protocol, vlan_id);
   char src_ip[INET_ADDRSTRLEN];
   char dst_ip[INET_ADDRSTRLEN];
   inet_ntop(AF_INET, &ip_header->saddr, src_ip, INET_ADDRSTRLEN);
@@ -149,12 +160,23 @@ void PacketDumper::ExtractFourLayerHeader(unsigned char* raw_packet) {
   LOG(INFO) << "src port: " << ntohs(tcp_header->source) << ", dst port: " << ntohs(tcp_header->dest);
 }
 
-std::string PacketDumper::TransportProtocol(unsigned char code) {
+std::string PacketDumper::RecordProtocol(unsigned char code, int vlan_id) {
+  std::lock_guard<std::mutex> l(record_lock_);
   switch(code) {
-    case 1: return "icmp";
-    case 2: return "igmp";
-    case 6: return "tcp";
-    case 17: return "udp";
-    default: return "unknown";
+    case 1:
+      vlan_record_.record_map[vlan_id]->ICMP_packet_num_++;
+      return "icmp";
+    case 2:
+      vlan_record_.record_map[vlan_id]->IGMP_packet_num_++;
+      return "igmp";
+    case 6:
+      vlan_record_.record_map[vlan_id]->TCP_packet_num_++;
+      return "tcp";
+    case 17:
+      vlan_record_.record_map[vlan_id]->UDP_packet_num_++;
+      return "udp";
+    default:
+      vlan_record_.record_map[vlan_id]->Unknown_packet_num_++;
+      return "unknown";
   }
 }

@@ -24,6 +24,7 @@ int main(int argc, char** argv)
     dumper.Stop();
   };
   dumper.Init();
+  dumper.StartReportThread();
   dumper.StartCapture();
   std::signal(45, signal_handler);
   return 0;
