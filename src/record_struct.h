@@ -2,6 +2,7 @@
 #define __RECORD_STRUCT_H_
 
 #include <unordered_map>
+#include <string>
 
 struct PacketNum {
   PacketNum() : ICMP_packet_num_(0), IGMP_packet_num_(0), TCP_packet_num_(0), UDP_packet_num_(0), Unknown_packet_num_(0) {}
@@ -18,6 +19,14 @@ struct VlanRecord {
   ~VlanRecord() = default;
   int total_packet_num = 0;
   std::unordered_map<int, PacketNum*> record_map;
+};
+
+static std::unordered_map<int, std::string> TYPE_MAP = {
+  {1, "icmp"},
+  {2, "igmp"},
+  {6, "tcp"},
+  {17, "udp"},
+  {252, "unknown"},
 };
 
 #endif

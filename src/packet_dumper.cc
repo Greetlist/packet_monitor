@@ -170,18 +170,20 @@ std::string PacketDumper::RecordProtocol(unsigned char code, int vlan_id) {
   switch(code) {
     case 1:
       vlan_record_.record_map[vlan_id]->ICMP_packet_num_++;
-      return "icmp";
+      break;
     case 2:
       vlan_record_.record_map[vlan_id]->IGMP_packet_num_++;
-      return "igmp";
+      break;
     case 6:
       vlan_record_.record_map[vlan_id]->TCP_packet_num_++;
-      return "tcp";
+      break;
     case 17:
       vlan_record_.record_map[vlan_id]->UDP_packet_num_++;
-      return "udp";
+      break;
     default:
       vlan_record_.record_map[vlan_id]->Unknown_packet_num_++;
-      return "unknown";
+      code = 252;
+      break;
   }
+  return TYPE_MAP[code];
 }

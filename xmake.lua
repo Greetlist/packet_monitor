@@ -1,9 +1,9 @@
 add_rules("mode.debug", "mode.release")
 
-add_requires("libpcap", "glog", "gflags")
+add_requires("libpcap", "glog", "gflags", "prometheus-cpp")
 
 target("packet_monitor")
-    add_packages("libpcap", "glog", "gflags")
+    add_packages("libpcap", "glog", "gflags", "prometheus-cpp")
     set_kind("binary")
     add_files("src/*.cc")
     set_languages("c++17")
