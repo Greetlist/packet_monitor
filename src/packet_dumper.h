@@ -15,10 +15,11 @@
 
 #include "record_struct.h"
 #include "net_device.h"
+#include "prom_client.h"
 
 class PacketDumper {
 public:
-  explicit PacketDumper(const std::string& device, const std::string& filter_phrase, const int max_capture_num, bool record_vlan);
+  explicit PacketDumper(const std::string& device, const std::string& filter_phrase, const int max_capture_num, bool record_vlan, PromeClient& pc);
   ~PacketDumper();
   void Init();
   void StartCapture();
@@ -44,6 +45,7 @@ private:
   std::mutex record_lock_;
 
   std::thread report_thread_;
+  PromeClient& pc_;
 
   static constexpr int ETH_MAX_LEN = 1500;
 };

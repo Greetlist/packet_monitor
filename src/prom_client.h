@@ -12,17 +12,18 @@
 #include "record_struct.h"
 
 using namespace prometheus;
+typedef Family<Counter> FC;
 
 class PromeClient {
 public:
-  PromeClient(const std::string& server_addr, const std::vector<int>& record_vlan_vec);
+  PromeClient(const std::string& server_addr, const std::string& record_vlan_vec);
   ~PromeClient() = default;
   void Init();
+  std::unordered_map<int, std::unordered_map<std::string, FC>> counter_map_;
 private:
   std::string server_addr_;
+  std::string record_vlan_vec_str_;
   std::vector<int> record_vlan_vec_;
-  std::vector<Counter> counter_vec_;
-  std::unordered_map<int, Counter> counter_map_;
   Exposer exposer_;
   std::shared_ptr<Registry> registry_;
   Counter packet_counter_;

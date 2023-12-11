@@ -1,6 +1,6 @@
 #include "packet_dumper.h"
 
-PacketDumper::PacketDumper(const std::string& device_name, const std::string& filter_phrase, const int max_capture_num, bool record_vlan) : device_name_(device_name), filter_phrase_(filter_phrase), record_vlan_(record_vlan) {}
+PacketDumper::PacketDumper(const std::string& device_name, const std::string& filter_phrase, const int max_capture_num, bool record_vlan, PromeClient& pc) : device_name_(device_name), filter_phrase_(filter_phrase), record_vlan_(record_vlan), pc_(pc) {}
 
 PacketDumper::~PacketDumper() {
   if (net_device_) {
